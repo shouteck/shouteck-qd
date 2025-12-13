@@ -2,7 +2,7 @@
 
 // : is used here to initialize items that must be inside backpack
 Portfolio::Portfolio(double initial_cash)
-    : cash_(initial_cash), position_(0) {}
+    : cash_(initial_cash), position_(0), realized_pnl_(0.0) {}
 
 void Portfolio::apply(const Order& order) {
     if (order.signal == Signal::Buy) {
@@ -11,6 +11,7 @@ void Portfolio::apply(const Order& order) {
     } else if (order.signal == Signal::Sell) {
         cash_ += order.execution_price;
         position_ -= 1;
+        realized_pnl_ += order.execution_price;
     }
 }
 
@@ -24,4 +25,8 @@ int Portfolio::position() const {
 
 double Portfolio::equity(double market_price) const {
     return cash_ + position_ * market_price;
+}
+
+double Portfolio::realized_pnl() const {
+    return realized_pnl_;
 }

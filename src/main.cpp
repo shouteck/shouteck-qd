@@ -19,6 +19,7 @@ int main() {
     Strategy strategy;
 
     // 3. Simulate days
+    double pre_equity = portfolio.equity(prices[0]);
     for (int day = 0; day < prices.size(); ++day) {
         double today_price = prices[day];
 
@@ -32,11 +33,17 @@ int main() {
         }
 
         // --- Portfolio state ---
+        double equity = portfolio.equity(today_price);
+        double daily_pnl = equity - pre_equity;
+        double daily_return = daily_pnl / pre_equity;
+
         std::cout << " Day: " << day
-                  << " | Cash: " << portfolio.cash()
-                  << " | Position: " << portfolio.position()
-                  << " | Equity: " << portfolio.equity(today_price)
+                  << " | Equity: " << equity
+                  << " | PnL: " << daily_pnl
+                  << " | Return: " << daily_return
                   << "\n";
+
+        pre_equity = equity;
     }
 
     return 0;

@@ -1,7 +1,6 @@
 #pragma once
 
 #include "execution.hpp"
-#include <vector>
 
 class Portfolio {
 public:
@@ -12,13 +11,17 @@ public:
     // Apply an executed order
     void apply(const Order& order);
 
+    // const means the method does not modify the object
     double cash() const;
     int position() const;
 
     // Total value given current market price
     double equity(double market_price) const;
 
+    double realized_pnl() const;
+
 private:
     double cash_;
     int position_;
+    double realized_pnl_;
 };
