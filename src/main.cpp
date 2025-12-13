@@ -4,42 +4,35 @@
 #include "strategy.hpp"
 #include "execution.hpp"
 #include "portfolio.hpp"
+#include "signal.hpp"
 
 int main() {
-    std::vector<double> prices = {
-        100.0, 102.0, 101.0, 105.0, 103.0
-    };
-
+    // 1. Initial setup
+    Portfolio portfolio(10'000.0);
     Strategy strategy;
     ExecutionEngine execution;
-    Portfolio portfolio(1000.0);
 
-    double prev_equity = portfolio.equity(prices[0]);
+    // 2. Simulated price stream (replace with live feed later)
+    std::vector<double> prices = {
+        100.0, 101.0, 102.5, 101.8, 103.0,
+        104.2, 103.5, 105.0, 104.0
+    };
 
-    for (int day = 0; day < prices.size(); ++day) {
-        double price = prices[day];
+    // 3. Event loop
+    for (size_t i = 0; i < prices.size(); ++i) {
+        double price = prices[i];
 
-        // Strategy generates signals
-        strategy.on_day(day, prices, execution);
+        Signal signal = strategy.on_price(price);
 
-        // Execution processes eligible signals
-        Order order;
-        if (execution.execute(day, price, portfolio, order)) {
-            portfolio.apply(order);
-        }
+        execution.execute(signal, price, portfolio);
 
-        // Performance tracking
-        double equity = portfolio.equity(price);
-        double pnl = equity - prev_equity;
-        double ret = pnl / prev_equity;
-
-        std::cout << "Day " << day
-                  << " | Equity: " << equity
-                  << " | PnL: " << pnl
-                  << " | Return: " << ret
-                  << "\n";
-
-        prev_equity = equity;
+        std::cout
+            << "Price: " << price
+            << " | Cash: " << portfolio.cash()
+            << " | Pos: " << portfolio.position()
+            << " | Equity: " << portfolio.equity(price)
+            << " | PnL: " << portfolio.pnl(price)
+            << "\n";
     }
 
     return 0;

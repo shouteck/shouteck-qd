@@ -1,20 +1,14 @@
 #pragma once
 
-#include "execution.hpp"
-#include <vector>
+#include "signal.hpp"
 
 class Strategy {
 public:
-    // Memory must start in a known state
-    Strategy();
+    Strategy() = default;
 
-    // Observe market data at time t
-    // Possibly submit a signal
-    void on_day(
-        int day,
-        const std::vector<double>& prices,
-        // Strategy does not own the execution engine
-        // It only talks to it
-        ExecutionEngine& execution
-    );
+    Signal on_price(double price);
+
+private:
+    double last_price_ = 0.0;
+    bool has_last_price_ = false;
 };

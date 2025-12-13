@@ -1,20 +1,20 @@
 #include "strategy.hpp"
 
-Strategy::Strategy() {}
+Signal Strategy::on_price(double price) {
+    if (!has_last_price_) {
+        last_price_ = price;
+        has_last_price_ = true;
+        return Signal::Hold;
+    }
 
-void Strategy::on_day(
-    int day,
-    const std::vector<double>& prices,
-    ExecutionEngine& execution
-) {
-    // Very simple demo strategy:
-    // Buy on even days, sell on odd days
+    Signal signal = Signal::Hold;
 
-    Signal signal = (day % 2 == 0) ? Signal::Buy : Signal::Sell;
+    if (price > last_price_) {
+        signal = Signal::Buy;
+    } else if (price < last_price_) {
+        signal = Signal::Sell;
+    }
 
-    TimedSignal timed_signal;
-    timed_signal.execute_day = day + 1;  // enforce next-day execution
-    timed_signal.signal = signal;
-
-    execution.accept(timed_signal);
+    last_price_ = price;
+    return signal;
 }
