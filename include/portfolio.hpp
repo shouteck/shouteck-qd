@@ -6,11 +6,12 @@
 class Portfolio {
 public:
     // C++ specific safety feature
+    // prevents Portfolio p = 1000.0;
     explicit Portfolio(double initial_cash);
 
     // Apply an executed order
     void apply(const Order& order);
-    
+
     double cash() const;
     int position() const;
 

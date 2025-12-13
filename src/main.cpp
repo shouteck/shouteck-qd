@@ -16,22 +16,18 @@ int main() {
     // 2. Create core components
     ExecutionEngine execution;
     Portfolio portfolio(1000.0);
+    Strategy strategy;
 
     // 3. Simulate days
-    for (size_t day = 0; day < prices.size(); ++day) {
+    for (int day = 0; day < prices.size(); ++day) {
         double today_price = prices[day];
 
-        // --- Strategy (hardcoded for now) ---
-        if (day == 0) {
-            execution.submit(Signal::Buy, day);
-        }
-        if (day == 2) {
-            execution.submit(Signal::Sell, day);
-        }
+        // --- Strategy observes today ---
+        strategy.on_day(day, prices, execution);
 
-        // --- Execute trades from previous day ---
+        // --- Execution executes older signals ---
         Order order;
-        if (execution.execute(day,today_price, order)) {
+        if (execution.execute(day, today_price, order)) {
             portfolio.apply(order);
         }
 
