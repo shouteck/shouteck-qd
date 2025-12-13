@@ -1,43 +1,16 @@
-// Tells the compiler to include this file only once
 #pragma once
 
-// Restricted set of values
-enum class Signal {
-    Buy,
-    Sell,
-    Hold
-};
+#include "signal.hpp"
 
-// No logic just data
-struct Order {
-    Signal signal;
-    int quantity;
-    double execution_price;
-};
+// Given a signal and a price, can we execute it safely?
 
-// Signal + the time it was generated
-struct TimedSignal {
-    Signal signal;
-    int execute_day; // day when this signal is allowed to execute
-};
-
-class Portfolio; // forward declaration
+class Portfolio;
 
 class ExecutionEngine {
 public:
-    // Strategy sends signals here
-    void accept(const TimedSignal& signal);
-
-    // Engine executes only eligible signals
-    // Returns true if an order was executed
     bool execute(
-        int day,
+        Signal signal,
         double market_price,
-        Portfolio& portfolio,
-        Order& out_order
+        Portfolio& portfolio
     );
-
-private:
-    bool has_pending_signal_ = false;
-    TimedSignal pending_signal_;
 };
