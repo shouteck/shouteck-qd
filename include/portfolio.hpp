@@ -1,5 +1,6 @@
 #pragma once
 
+#include <deque>
 #include "execution.hpp"
 
 class Portfolio {
@@ -24,4 +25,6 @@ private:
     double cash_;
     int position_;
     double realized_pnl_;
+    // NEW: track entry prices
+    std::deque<double> open_lots_;
 };
