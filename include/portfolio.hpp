@@ -1,30 +1,25 @@
 #pragma once
 
-#include <deque>
-#include "execution.hpp"
+#include "signal.hpp"
 
 class Portfolio {
 public:
-    // C++ specific safety feature
-    // prevents Portfolio p = 1000.0;
+    // Portfolio must be born valid
     explicit Portfolio(double initial_cash);
 
-    // Apply an executed order
-    void apply(const Order& order);
+    // Apply an executed trade
+    void apply_fill(Signal signal, int quantity, double price);
 
-    // const means the method does not modify the object
+    // State accessors
     double cash() const;
     int position() const;
 
-    // Total value given current market price
+    // Valuation
     double equity(double market_price) const;
-
-    double realized_pnl() const;
+    double pnl(double market_price) const;
 
 private:
     double cash_;
     int position_;
-    double realized_pnl_;
-    // NEW: track entry prices
-    std::deque<double> open_lots_;
+    double initial_cash_;
 };
