@@ -21,30 +21,26 @@ int main() {
     for (size_t day = 0; day < prices.size(); ++day) {
         double today_price = prices[day];
 
-        std::cout << "Day " << day
-                  << " | Price: " << today_price << "\n";
-
         // --- Strategy (hardcoded for now) ---
         if (day == 0) {
-            execution.submit(Signal::Buy);
+            execution.submit(Signal::Buy, day);
         }
         if (day == 2) {
-            execution.submit(Signal::Sell);
+            execution.submit(Signal::Sell, day);
         }
 
         // --- Execute trades from previous day ---
         Order order;
-        if (execution.execute(today_price, order)) {
+        if (execution.execute(day,today_price, order)) {
             portfolio.apply(order);
-            std::cout << "  Executed order at "
-                      << order.execution_price << "\n";
         }
 
         // --- Portfolio state ---
-        std::cout << "  Cash: " << portfolio.cash()
+        std::cout << " Day: " << day
+                  << " | Cash: " << portfolio.cash()
                   << " | Position: " << portfolio.position()
                   << " | Equity: " << portfolio.equity(today_price)
-                  << "\n\n";
+                  << "\n";
     }
 
     return 0;

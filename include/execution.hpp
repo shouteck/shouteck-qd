@@ -17,17 +17,23 @@ struct Order {
     double execution_price;
 };
 
+// Signal + the time it was generated
+struct TimedSignal {
+    Signal signal;
+    int time_index;
+};
+
 class ExecutionEngine {
 public:
     // Submit a signal generated at time t
-    void submit(Signal signal);
+    void submit(Signal signal, int time_index);
 
     // Execute pending signal using the bar at time t+1
     // Returns true if an order was executed
     bool execute(
         // Pass by reference to avoid copying the string, saving memory
-        const std::string& date,
-        double open_price,
+        int current_time;
+        double market_price,
         Order& out_order
     );
 
@@ -35,5 +41,5 @@ public:
 
 private:
     bool has_pending_signal_ = false;
-    Signal pending_signal_;
+    TimedSignal pending_signal_;
 };

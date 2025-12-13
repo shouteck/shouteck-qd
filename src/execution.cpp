@@ -1,15 +1,15 @@
 #include "execution.hpp"
 
-void ExecutionEngine::submit(Signal signal) {
-    if (signal == Signal::Hold) {
-        return;
-    }
-    has_pending_signal_ = true;
-    pending_signal_ = signal;
+ExecutionEngine::ExecutionEngine()
+    : has_pending_signal_(false) {}
+
+void ExecutionEngine::submit(Signal signal, int time_index) {
+    has_pending_signal_ = { signal, time_index };
+    pending_signal_ = true;
 }
 
 bool ExecutionEngine::execute(
-    const std::string& date,
+    int current_time,
     double open_price,
     Order& out_order
 ) {
@@ -17,9 +17,12 @@ bool ExecutionEngine::execute(
         return false;
     }
 
-    out_order.signal = pending_signal_;
-    out_order.execution_date = date;
-    out_order.execution_price = open_price;
+    if (current_time <= pending_signal_.time_index) {
+        return false;
+    }
+
+    out_order.signal = pending_signal_.signal;
+    out_order.execution_price = market_price;
 
     has_pending_signal_ = false;
     return true;
