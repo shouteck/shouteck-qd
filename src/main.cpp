@@ -1,11 +1,11 @@
 #include <iostream>
-#include <vector>
 #include <string>
 
 #include "strategy.hpp"
 #include "execution.hpp"
 #include "portfolio.hpp"
 #include "signal.hpp"
+#include "market_data.hpp"
 
 // Helper for readable logs
 std::string to_string(Signal signal) {
@@ -31,19 +31,17 @@ int main() {
     ExecutionEngine execution;
 
     // -----------------------------
-    // Market data (placeholder)
+    // Load market data (US hours only)
     // -----------------------------
-    std::vector<double> prices = {
-        100.0, 101.0, 102.5, 101.8,
-        103.0, 104.2, 103.5, 105.0,
-        104.0
-    };
+    auto market_data = load_market_data("data/AAPL.csv");
 
     // -----------------------------
     // Event-driven trading loop
     // -----------------------------
-    for (double price : prices) {
-        // 1. Kill switch (hard risk stop)
+    for (const MarketTick& tick : market_data) {
+        double price = tick.price;
+
+        // 1. Kill switch
         double current_pnl = portfolio.pnl(price);
         if (current_pnl <= -MAX_LOSS) {
             std::cout << "[KILL] Max loss reached. PnL="
@@ -73,6 +71,7 @@ int main() {
         // 5. State snapshot
         std::cout
             << "[STATE]"
+            << " Time=" << tick.timestamp
             << " Price=" << price
             << " Cash=" << portfolio.cash()
             << " Pos=" << portfolio.position()
