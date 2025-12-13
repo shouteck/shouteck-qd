@@ -1,31 +1,20 @@
 #include "strategy.hpp"
 
-Strategy::Strategy()
-    : has_position_(false) {}
+Strategy::Strategy() {}
 
 void Strategy::on_day(
-    int time_index,
+    int day,
     const std::vector<double>& prices,
     ExecutionEngine& execution
 ) {
-    // Need at least 2 days to compare
-    if (time_index == 0) {
-        return;
-    }
+    // Very simple demo strategy:
+    // Buy on even days, sell on odd days
 
-    double today = prices[time_index];
-    double yesterday = prices[time_index - 1];
+    Signal signal = (day % 2 == 0) ? Signal::Buy : Signal::Sell;
 
-    // Simple rule:
-    // If price goes up and we don't have a position → Buy
-    if (!has_position_ && today > yesterday) {
-        execution.submit(Signal::Buy, time_index);
-        has_position_ = true;
-    }
+    TimedSignal timed_signal;
+    timed_signal.execute_day = day + 1;  // enforce next-day execution
+    timed_signal.signal = signal;
 
-    // If price goes down and we have a position → Sell
-    else if (has_position_ && today < yesterday) {
-        execution.submit(Signal::Sell, time_index);
-        has_position_ = false;
-    }
+    execution.accept(timed_signal);
 }

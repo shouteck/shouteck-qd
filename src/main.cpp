@@ -1,49 +1,45 @@
-#include "execution.hpp"
-#include "portfolio.hpp"
-
 #include <iostream>
 #include <vector>
 
+#include "strategy.hpp"
+#include "execution.hpp"
+#include "portfolio.hpp"
+
 int main() {
-    // 1. Fake market data (daily open prices)
     std::vector<double> prices = {
-        100.0,
-        102.0,
-        101.0,
-        105.0
+        100.0, 102.0, 101.0, 105.0, 103.0
     };
 
-    // 2. Create core components
+    Strategy strategy;
     ExecutionEngine execution;
     Portfolio portfolio(1000.0);
-    Strategy strategy;
 
-    // 3. Simulate days
-    double pre_equity = portfolio.equity(prices[0]);
+    double prev_equity = portfolio.equity(prices[0]);
+
     for (int day = 0; day < prices.size(); ++day) {
-        double today_price = prices[day];
+        double price = prices[day];
 
-        // --- Strategy observes today ---
+        // Strategy generates signals
         strategy.on_day(day, prices, execution);
 
-        // --- Execution executes older signals ---
+        // Execution processes eligible signals
         Order order;
-        if (execution.execute(day, today_price, order)) {
+        if (execution.execute(day, price, portfolio, order)) {
             portfolio.apply(order);
         }
 
-        // --- Portfolio state ---
-        double equity = portfolio.equity(today_price);
-        double daily_pnl = equity - pre_equity;
-        double daily_return = daily_pnl / pre_equity;
+        // Performance tracking
+        double equity = portfolio.equity(price);
+        double pnl = equity - prev_equity;
+        double ret = pnl / prev_equity;
 
-        std::cout << " Day: " << day
+        std::cout << "Day " << day
                   << " | Equity: " << equity
-                  << " | PnL: " << daily_pnl
-                  << " | Return: " << daily_return
+                  << " | PnL: " << pnl
+                  << " | Return: " << ret
                   << "\n";
 
-        pre_equity = equity;
+        prev_equity = equity;
     }
 
     return 0;
