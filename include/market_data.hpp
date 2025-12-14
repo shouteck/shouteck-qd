@@ -2,12 +2,16 @@
 
 #include <string>
 #include <vector>
+#include "market_tick.hpp"
 
-// One market event (price + time)
-struct MarketTick {
-    std::string timestamp; // "YYYY-MM-DD HH:MM:SS"
-    double price;
+class MarketData {
+public:
+    explicit MarketData(const std::string& csv_path);
+
+    bool has_next() const;
+    MarketTick next();
+
+private:
+    std::vector<MarketTick> ticks_;
+    std::size_t index_;
 };
-
-// Load CSV and return only regular-session ticks
-std::vector<MarketTick> load_market_data(const std::string& csv_path);

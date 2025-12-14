@@ -1,23 +1,13 @@
 #include "strategy.hpp"
 
-Strategy::Strategy()
-    : last_price_(0.0) {}
+Strategy::Strategy() {}
 
-Signal Strategy::on_price(double price) const {
-    if (last_price_ == 0.0) {
-        last_price_ = price;
-        return Signal::Hold;
-    }
-
-    if (price > last_price_) {
-        last_price_ = price;
+Signal Strategy::on_tick(double price) {
+    if (price < 100.0) {
         return Signal::Buy;
     }
-
-    if (price < last_price_) {
-        last_price_ = price;
+    if (price > 110.0) {
         return Signal::Sell;
     }
-
     return Signal::Hold;
 }

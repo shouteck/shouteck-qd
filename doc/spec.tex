@@ -22,46 +22,51 @@ Phase 1: Single-Stock Event-Driven Trading System}
 
 \section{Purpose and Scope}
 
-This document specifies the current architecture and behavior of a minimal, production-oriented trading system designed for:
+This document specifies the \textbf{current implemented architecture and behavior} of a minimal, production-oriented trading system designed for:
 
 \begin{itemize}
 \item Trading a \textbf{single NASDAQ-listed stock}
-\item Event-driven execution
-\item Paper trading with execution latency
+\item Deterministic event-driven execution
+\item Paper trading with broker-style execution latency
 \item Gradual transition toward live trading via \textbf{Webull}
 \end{itemize}
 
-The system prioritizes \textbf{correctness, causality, and risk control} over performance or strategy sophistication.
+The system prioritizes \textbf{correctness, causality, observability, and risk control} over performance or strategy sophistication.
 
 \section{Design Principles}
 
 \begin{itemize}
 \item No lookahead bias
 \item Separation of concerns
-\item Explicit state transitions
+\item Explicit temporal ordering
 \item Broker-realistic execution semantics
-\item Incremental realism
+\item Deterministic replay
+\item Incremental realism toward live trading
 \end{itemize}
 
 \section{High-Level Architecture}
 
 \begin{verbatim}
-Market Data (CSV / Feed)
+Market Data (CSV)
 ↓
-Strategy
-↓ (Signal)
-Execution Engine
-↓ (Pending Order)
+MarketData (filters invalid ticks)
+↓
+Strategy (price → signal)
+↓
+Execution Engine (signal → order)
+↓
 Paper Broker (1-tick latency)
-↓ (Fill)
-Portfolio
+↓
+Portfolio (cash & position)
+↓
+Logger (audit trail)
 \end{verbatim}
 
 \section{Market Data Layer}
 
 \subsection{MarketTick}
 
-Each market update is represented as:
+Each market event is represented as an immutable value object:
 
 \begin{lstlisting}[language=C++]
 struct MarketTick {
@@ -79,15 +84,26 @@ timestamp,price
 2024-06-12 09:30:00,189.35
 \end{verbatim}
 
-\subsection{Market Hours Assumption}
+The CSV file is loaded once at startup and replayed deterministically.
+
+\subsection{Market Hours Filtering}
+
+The \texttt{MarketData} component enforces market-session validity:
 
 \begin{itemize}
-\item Only regular US market hours are traded: \textbf{09:30--16:00 ET}
-\item Pre-market and after-hours ticks are discarded
-\item Daylight Saving Time is assumed to be handled by the data source
+\item Only regular US market hours are accepted: \textbf{09:30–16:00 ET}
+\item Pre-market and after-hours ticks are discarded \emph{before} entering the system
+\item Strategy, execution, and portfolio layers never see invalid ticks
 \end{itemize}
 
-\textbf{Note:} This implementation is \emph{not} production-robust with respect to DST and holidays.
+\textbf{Assumptions:}
+
+\begin{itemize}
+\item Timestamps are already in US Eastern Time
+\item Daylight Saving Time correctness is handled by the data source
+\end{itemize}
+
+\textbf{Note:} Exchange holidays and DST edge cases are intentionally out of scope for Phase 1.
 
 \section{Strategy Layer}
 
@@ -103,8 +119,9 @@ The strategy consumes prices sequentially and emits a trading signal:
 
 \begin{itemize}
 \item Stateless from the system perspective
-\item Deterministic
-\item No direct access to portfolio or execution
+\item Deterministic given price history
+\item No direct access to portfolio state
+\item No direct access to execution or broker logic
 \end{itemize}
 
 \section{Signal Semantics}
@@ -117,16 +134,17 @@ Hold
 };
 \end{lstlisting}
 
-A signal represents \textbf{intent only}, not execution.
+A signal represents \textbf{intent only}. It does not imply execution, quantity, or fill certainty.
 
 \section{Execution Engine}
 
 \subsection{Responsibilities}
 
 \begin{itemize}
-\item Translate signals into orders
+\item Translate signals into executable orders
 \item Enforce execution latency
-\item Prevent overlapping orders
+\item Prevent overlapping or conflicting orders
+\item Model a minimal paper broker
 \end{itemize}
 
 \subsection{Pending Orders}
@@ -138,9 +156,12 @@ int quantity;
 };
 \end{lstlisting}
 
-Only one pending order may exist at any time.
+\begin{itemize}
+\item Only one pending order may exist at any time
+\item Quantity is fixed and simplified for Phase 1
+\end{itemize}
 
-\subsection{Execution Latency}
+\subsection{Execution Latency Model}
 
 The system enforces a \textbf{1-tick execution latency}:
 
@@ -151,9 +172,10 @@ A trading decision made at tick $t$ may only be filled at tick $t+1$.
 This ensures:
 
 \begin{itemize}
-\item No instant fills
 \item No same-tick execution
+\item No instantaneous fills
 \item Correct causal ordering
+\item Realistic paper-broker behavior
 \end{itemize}
 
 \section{Portfolio}
@@ -177,70 +199,64 @@ This ensures:
 
 \begin{itemize}
 \item No transaction costs
+\item No slippage
 \item No partial fills
-\item No short selling constraints
+\item No leverage or margin
 \end{itemize}
-
-\section{Risk Management}
-
-A hard kill switch is enforced in the main event loop:
-
-\begin{quote}
-If cumulative PnL falls below a fixed loss threshold, trading stops immediately.
-\end{quote}
-
-This is a \textbf{non-negotiable safety mechanism}.
 
 \section{Main Event Loop}
 
-For each market tick:
+For each valid market tick:
 
 \begin{enumerate}
-\item Fill any pending orders (from previous ticks)
-\item Check kill switch
-\item Generate trading signal
-\item Submit new order (if any)
-\item Log system state
+\item Fill any pending orders from the previous tick
+\item Apply fills to the portfolio
+\item Generate a trading signal from the strategy
+\item Submit the signal to the execution engine
+\item Log full system state
 \end{enumerate}
+
+This ordering strictly enforces temporal causality.
 
 \section{Logging and Observability}
 
-The system logs:
+The system produces a structured CSV log capturing:
 
 \begin{itemize}
-\item Price and timestamp
-\item Portfolio cash and position
-\item Equity and PnL
+\item Timestamp and price
+\item Cash balance and position
+\item Equity and cumulative PnL
+\item Execution state (pending order flag)
 \end{itemize}
 
-Logs are synchronous and human-readable.
+Logging is synchronous, deterministic, and intended for audit, debugging, and analysis.
 
 \section{Known Limitations}
 
 \begin{itemize}
 \item No timezone-aware timestamps
 \item No exchange holiday calendar
-\item No broker rejects
-\item No partial fills
+\item No broker rejects or cancels
 \item No asynchronous execution
+\item Single-instrument only
 \end{itemize}
 
-These limitations are intentional and will be addressed incrementally.
+These limitations are intentional and reflect the Phase 1 learning scope.
 
 \section{Planned Extensions}
 
 \begin{itemize}
-\item Broker reject handling
-\item Variable execution latency
-\item Timezone and DST correctness
-\item Webull API adapter
-\item Live trading safeguards
+\item Formal order lifecycle (Submitted / Pending / Filled / Rejected)
+\item Transaction costs and slippage
+\item Exchange calendar and DST correctness
+\item Webull API adapter (paper → live)
+\item Live trading safety checks
 \end{itemize}
 
 \section{Conclusion}
 
-This system represents a \textbf{correct, minimal, and extensible foundation} for real-world algorithmic trading.
+This system represents a \textbf{correct, observable, and causally sound foundation} for real-world algorithmic trading.
 
-It is designed to evolve safely toward live deployment while preserving correctness at every stage.
+Each component is designed to evolve incrementally toward live deployment without sacrificing correctness.
 
 \end{document}

@@ -4,16 +4,12 @@ class Portfolio {
 public:
     explicit Portfolio(double initial_cash);
 
+    void apply_fill(const PendingOrder& order, double price);
+
     double cash() const;
     int position() const;
-
     double equity(double price) const;
-    double pnl(double price) const;
-
-    int max_affordable_quantity() const;
-
-    void buy(int quantity, double price);
-    void sell(int quantity, double price);
+    double initial_cash() const;
 
 private:
     double cash_;

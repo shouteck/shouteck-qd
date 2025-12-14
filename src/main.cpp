@@ -1,60 +1,34 @@
-#include <iostream>
-#include <string>
-
+#include "market_data.hpp"
 #include "strategy.hpp"
 #include "execution.hpp"
 #include "portfolio.hpp"
-#include "signal.hpp"
-#include "market_data.hpp"
-
-std::string to_string(Signal signal) {
-    switch (signal) {
-        case Signal::Buy:  return "BUY";
-        case Signal::Sell: return "SELL";
-        case Signal::Hold: return "HOLD";
-    }
-    return "UNKNOWN";
-}
+#include "logger.hpp"
 
 int main() {
-    static constexpr double MAX_LOSS = 500.0;
+    MarketData market_data("data/AAPL.csv");
 
-    Portfolio portfolio(10'000.0);
     Strategy strategy;
-    ExecutionEngine execution;
+    ExecutionEngine execution(0.1);
+    Portfolio portfolio(100000.0);
+    Logger logger("logs/run.csv");
 
-    auto market_data = load_market_data("data/AAPL.csv");
+    while (market_data.has_next()) {
+        MarketTick tick = market_data.next();
 
-    for (const MarketTick& tick : market_data) {
-        double price = tick.price;
+        // Fill t-1 orders
+        execution.on_tick();
 
-        // 1. Fill pending orders
-        execution.on_tick(price, portfolio);
-
-        // 2. Kill switch
-        double current_pnl = portfolio.pnl(price);
-        if (current_pnl <= -MAX_LOSS) {
-            std::cout << "[KILL] Max loss reached. PnL="
-                      << current_pnl << "\n";
-            break;
+        if (execution.has_filled_order()) {
+            portfolio.apply_fill(execution.filled_order(), tick.price);
+            execution.clear_filled_order();
         }
 
-        // 3. Strategy decision
-        Signal signal = strategy.on_price(price);
+        // Generate signal at t
+        Signal signal = strategy.on_tick(tick.price);
+        execution.submit_signal(signal);
 
-        // 4. Submit order
-        execution.submit(signal, price, portfolio);
-
-        // 5. State logging
-        std::cout
-            << "[STATE]"
-            << " Time=" << tick.timestamp
-            << " Price=" << price
-            << " Cash=" << portfolio.cash()
-            << " Pos=" << portfolio.position()
-            << " Equity=" << portfolio.equity(price)
-            << " PnL=" << portfolio.pnl(price)
-            << "\n";
+        // Log everything
+        logger.log_tick(tick, portfolio, execution);
     }
 
     return 0;

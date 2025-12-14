@@ -2,24 +2,29 @@
 
 #include <fstream>
 #include <sstream>
-#include <iostream>
+#include <stdexcept>
 
-// Helper: check if timestamp is within US regular hours
-static bool is_regular_market_hours(const std::string& timestamp) {
-    // timestamp format assumed: "YYYY-MM-DD HH:MM:SS"
-    // We only care about HH:MM
-    std::string time = timestamp.substr(11, 5); // HH:MM
+namespace {
 
-    return time >= "09:30" && time <= "16:00";
+bool is_regular_market_hours(const std::string& timestamp) {
+    int hour = std::stoi(timestamp.substr(11, 2));
+    int minute = std::stoi(timestamp.substr(14, 2));
+
+    if (hour < 9 || hour > 16) return false;
+    if (hour == 9 && minute < 30) return false;
+    if (hour == 16 && minute > 0) return false;
+
+    return true;
 }
 
-std::vector<MarketTick> load_market_data(const std::string& csv_path) {
-    std::vector<MarketTick> ticks;
-    std::ifstream file(csv_path);
+}
 
-    if (!file) {
-        std::cerr << "Failed to open CSV: " << csv_path << "\n";
-        return ticks;
+MarketData::MarketData(const std::string& csv_path)
+    : index_(0)
+{
+    std::ifstream file(csv_path);
+    if (!file.is_open()) {
+        throw std::runtime_error("Failed to open market data CSV");
     }
 
     std::string line;
@@ -27,8 +32,7 @@ std::vector<MarketTick> load_market_data(const std::string& csv_path) {
 
     while (std::getline(file, line)) {
         std::stringstream ss(line);
-        std::string timestamp;
-        std::string price_str;
+        std::string timestamp, price_str;
 
         std::getline(ss, timestamp, ',');
         std::getline(ss, price_str, ',');
@@ -37,12 +41,17 @@ std::vector<MarketTick> load_market_data(const std::string& csv_path) {
             continue;
         }
 
-        MarketTick tick;
-        tick.timestamp = timestamp;
-        tick.price = std::stod(price_str);
-
-        ticks.push_back(tick);
+        ticks_.push_back({
+            timestamp,
+            std::stod(price_str)
+        });
     }
+}
 
-    return ticks;
+bool MarketData::has_next() const {
+    return index_ < ticks_.size();
+}
+
+MarketTick MarketData::next() {
+    return ticks_.at(index_++);
 }
