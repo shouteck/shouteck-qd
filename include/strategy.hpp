@@ -4,11 +4,10 @@
 
 class Strategy {
 public:
-    Strategy() = default;
+    Strategy();
 
-    Signal on_price(double price);
+    Signal on_price(double price) const;
 
 private:
-    double last_price_ = 0.0;
-    bool has_last_price_ = false;
+    double last_price_;
 };

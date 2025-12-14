@@ -7,7 +7,6 @@
 #include "signal.hpp"
 #include "market_data.hpp"
 
-// Helper for readable logs
 std::string to_string(Signal signal) {
     switch (signal) {
         case Signal::Buy:  return "BUY";
@@ -18,30 +17,21 @@ std::string to_string(Signal signal) {
 }
 
 int main() {
-    // -----------------------------
-    // Risk configuration
-    // -----------------------------
     static constexpr double MAX_LOSS = 500.0;
 
-    // -----------------------------
-    // Core system components
-    // -----------------------------
     Portfolio portfolio(10'000.0);
     Strategy strategy;
     ExecutionEngine execution;
 
-    // -----------------------------
-    // Load market data (US hours only)
-    // -----------------------------
     auto market_data = load_market_data("data/AAPL.csv");
 
-    // -----------------------------
-    // Event-driven trading loop
-    // -----------------------------
     for (const MarketTick& tick : market_data) {
         double price = tick.price;
 
-        // 1. Kill switch
+        // 1. Fill pending orders
+        execution.on_tick(price, portfolio);
+
+        // 2. Kill switch
         double current_pnl = portfolio.pnl(price);
         if (current_pnl <= -MAX_LOSS) {
             std::cout << "[KILL] Max loss reached. PnL="
@@ -49,26 +39,13 @@ int main() {
             break;
         }
 
-        // 2. Strategy decision
+        // 3. Strategy decision
         Signal signal = strategy.on_price(price);
 
-        // 3. Attempt execution
-        bool executed = execution.execute(signal, price, portfolio);
+        // 4. Submit order
+        execution.submit(signal, price, portfolio);
 
-        // 4. Trade logging
-        if (signal != Signal::Hold) {
-            if (executed) {
-                std::cout << "[TRADE] "
-                          << to_string(signal)
-                          << " @ " << price << "\n";
-            } else {
-                std::cout << "[REJECT] "
-                          << to_string(signal)
-                          << " @ " << price << "\n";
-            }
-        }
-
-        // 5. State snapshot
+        // 5. State logging
         std::cout
             << "[STATE]"
             << " Time=" << tick.timestamp

@@ -1,16 +1,19 @@
 #pragma once
 
-#include "signal.hpp"
+#include <optional>
 
-// Given a signal and a price, can we execute it safely?
+#include "signal.hpp"
+#include "order.hpp"
 
 class Portfolio;
 
 class ExecutionEngine {
 public:
-    bool execute(
-        Signal signal,
-        double market_price,
-        Portfolio& portfolio
-    );
+    ExecutionEngine();
+
+    void submit(Signal signal, double price, Portfolio& portfolio);
+    void on_tick(double price, Portfolio& portfolio);
+
+private:
+    std::optional<PendingOrder> pending_order_;
 };

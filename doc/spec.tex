@@ -1,0 +1,246 @@
+% ------------------------------------------------------------
+% Technical Specification – Single-Stock Trading System (Phase 1)
+% Target: NASDAQ stock trading via Webull (paper → live)
+% Language: C++
+% ------------------------------------------------------------
+
+\documentclass[11pt]{article}
+\usepackage[a4paper, margin=1in]{geometry}
+\usepackage{amsmath}
+\usepackage{enumitem}
+\usepackage{hyperref}
+\usepackage{listings}
+\usepackage{xcolor}
+
+\title{Technical Specification \
+Phase 1: Single-Stock Event-Driven Trading System}
+\author{Quant Dev Learning Project}
+\date{\today}
+
+\begin{document}
+\maketitle
+
+\section{Purpose and Scope}
+
+This document specifies the current architecture and behavior of a minimal, production-oriented trading system designed for:
+
+\begin{itemize}
+\item Trading a \textbf{single NASDAQ-listed stock}
+\item Event-driven execution
+\item Paper trading with execution latency
+\item Gradual transition toward live trading via \textbf{Webull}
+\end{itemize}
+
+The system prioritizes \textbf{correctness, causality, and risk control} over performance or strategy sophistication.
+
+\section{Design Principles}
+
+\begin{itemize}
+\item No lookahead bias
+\item Separation of concerns
+\item Explicit state transitions
+\item Broker-realistic execution semantics
+\item Incremental realism
+\end{itemize}
+
+\section{High-Level Architecture}
+
+\begin{verbatim}
+Market Data (CSV / Feed)
+↓
+Strategy
+↓ (Signal)
+Execution Engine
+↓ (Pending Order)
+Paper Broker (1-tick latency)
+↓ (Fill)
+Portfolio
+\end{verbatim}
+
+\section{Market Data Layer}
+
+\subsection{MarketTick}
+
+Each market update is represented as:
+
+\begin{lstlisting}[language=C++]
+struct MarketTick {
+std::string timestamp; // "YYYY-MM-DD HH:MM:SS" (ET)
+double price;
+};
+\end{lstlisting}
+
+\subsection{Data Source}
+
+Market data is loaded from CSV files with the format:
+
+\begin{verbatim}
+timestamp,price
+2024-06-12 09:30:00,189.35
+\end{verbatim}
+
+\subsection{Market Hours Assumption}
+
+\begin{itemize}
+\item Only regular US market hours are traded: \textbf{09:30--16:00 ET}
+\item Pre-market and after-hours ticks are discarded
+\item Daylight Saving Time is assumed to be handled by the data source
+\end{itemize}
+
+\textbf{Note:} This implementation is \emph{not} production-robust with respect to DST and holidays.
+
+\section{Strategy Layer}
+
+The strategy consumes prices sequentially and emits a trading signal:
+
+\begin{itemize}
+\item Buy
+\item Sell
+\item Hold
+\end{itemize}
+
+\subsection{Properties}
+
+\begin{itemize}
+\item Stateless from the system perspective
+\item Deterministic
+\item No direct access to portfolio or execution
+\end{itemize}
+
+\section{Signal Semantics}
+
+\begin{lstlisting}[language=C++]
+enum class Signal {
+Buy,
+Sell,
+Hold
+};
+\end{lstlisting}
+
+A signal represents \textbf{intent only}, not execution.
+
+\section{Execution Engine}
+
+\subsection{Responsibilities}
+
+\begin{itemize}
+\item Translate signals into orders
+\item Enforce execution latency
+\item Prevent overlapping orders
+\end{itemize}
+
+\subsection{Pending Orders}
+
+\begin{lstlisting}[language=C++]
+struct PendingOrder {
+Signal side;
+int quantity;
+};
+\end{lstlisting}
+
+Only one pending order may exist at any time.
+
+\subsection{Execution Latency}
+
+The system enforces a \textbf{1-tick execution latency}:
+
+\begin{quote}
+A trading decision made at tick $t$ may only be filled at tick $t+1$.
+\end{quote}
+
+This ensures:
+
+\begin{itemize}
+\item No instant fills
+\item No same-tick execution
+\item Correct causal ordering
+\end{itemize}
+
+\section{Portfolio}
+
+\subsection{State Variables}
+
+\begin{itemize}
+\item Cash balance
+\item Share position
+\item Initial capital
+\end{itemize}
+
+\subsection{Computed Quantities}
+
+\begin{itemize}
+\item Equity: $cash + position \times price$
+\item PnL: $equity - initial_cash$
+\end{itemize}
+
+\subsection{Simplifications}
+
+\begin{itemize}
+\item No transaction costs
+\item No partial fills
+\item No short selling constraints
+\end{itemize}
+
+\section{Risk Management}
+
+A hard kill switch is enforced in the main event loop:
+
+\begin{quote}
+If cumulative PnL falls below a fixed loss threshold, trading stops immediately.
+\end{quote}
+
+This is a \textbf{non-negotiable safety mechanism}.
+
+\section{Main Event Loop}
+
+For each market tick:
+
+\begin{enumerate}
+\item Fill any pending orders (from previous ticks)
+\item Check kill switch
+\item Generate trading signal
+\item Submit new order (if any)
+\item Log system state
+\end{enumerate}
+
+\section{Logging and Observability}
+
+The system logs:
+
+\begin{itemize}
+\item Price and timestamp
+\item Portfolio cash and position
+\item Equity and PnL
+\end{itemize}
+
+Logs are synchronous and human-readable.
+
+\section{Known Limitations}
+
+\begin{itemize}
+\item No timezone-aware timestamps
+\item No exchange holiday calendar
+\item No broker rejects
+\item No partial fills
+\item No asynchronous execution
+\end{itemize}
+
+These limitations are intentional and will be addressed incrementally.
+
+\section{Planned Extensions}
+
+\begin{itemize}
+\item Broker reject handling
+\item Variable execution latency
+\item Timezone and DST correctness
+\item Webull API adapter
+\item Live trading safeguards
+\end{itemize}
+
+\section{Conclusion}
+
+This system represents a \textbf{correct, minimal, and extensible foundation} for real-world algorithmic trading.
+
+It is designed to evolve safely toward live deployment while preserving correctness at every stage.
+
+\end{document}

@@ -1,22 +1,19 @@
 #pragma once
 
-#include "signal.hpp"
-
 class Portfolio {
 public:
-    // Portfolio must be born valid
     explicit Portfolio(double initial_cash);
 
-    // Apply an executed trade
-    void apply_fill(Signal signal, int quantity, double price);
-
-    // State accessors
     double cash() const;
     int position() const;
 
-    // Valuation
-    double equity(double market_price) const;
-    double pnl(double market_price) const;
+    double equity(double price) const;
+    double pnl(double price) const;
+
+    int max_affordable_quantity() const;
+
+    void buy(int quantity, double price);
+    void sell(int quantity, double price);
 
 private:
     double cash_;

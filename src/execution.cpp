@@ -1,39 +1,41 @@
 #include "execution.hpp"
 #include "portfolio.hpp"
 
-bool ExecutionEngine::execute(
-    Signal signal,
-    double market_price,
-    Portfolio& portfolio
-) {
-    if (signal == Signal::Hold) return false;
+ExecutionEngine::ExecutionEngine()
+    : pending_order_(std::nullopt) {}
 
-    static constexpr double RISK_FRACTION = 0.10;
-    static constexpr double SLIPPAGE = 0.01;
-    static constexpr double COMMISSION = 0.005;
-
-    int quantity = static_cast<int>(
-        (portfolio.cash() * RISK_FRACTION) / market_price
-    );
-
-    if (quantity <= 0) return false;
-
-    double execution_price = market_price;
-
-    if (signal == Signal::Buy) {
-        execution_price += SLIPPAGE;
-    } else if (signal == Signal::Sell) {
-        execution_price -= SLIPPAGE;
+void ExecutionEngine::submit(Signal signal,
+                             double /*price*/,
+                             Portfolio& portfolio) {
+    if (pending_order_.has_value()) {
+        return;
     }
-    
-    double total_cost =
-        quantity * execution_price +
-        quantity * COMMISSION;
-    
-    if (signal == Signal::Buy && total_cost > portfolio.cash()) {
-        return false;
-    }    
 
-    portfolio.apply_fill(signal, quantity, execution_price);
-    return true;
+    if (signal == Signal::Hold) {
+        return;
+    }
+
+    int quantity = portfolio.max_affordable_quantity();
+
+    if (quantity <= 0) {
+        return;
+    }
+
+    pending_order_ = PendingOrder{signal, quantity};
+}
+
+void ExecutionEngine::on_tick(double price, Portfolio& portfolio) {
+    if (!pending_order_) {
+        return;
+    }
+
+    const PendingOrder& order = *pending_order_;
+
+    if (order.side == Signal::Buy) {
+        portfolio.buy(order.quantity, price);
+    } else if (order.side == Signal::Sell) {
+        portfolio.sell(order.quantity, price);
+    }
+
+    pending_order_.reset();
 }
